@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Boarding House Management{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="fas fa-tachometer-alt"></i> Dashboard</h1>
+        <div class="text-muted">
+            Welcome back, {{ current_user.username }}!
+        </div>
+    </div>
+    
+    <!-- Key Metrics -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card bg-primary">
+                <div class="card-body text-center">
+                    <i class="fas fa-door-open fa-2x mb-2"></i>
+                    <h4 class="card-title">{{ total_rooms }}</h4>
+                    <p class="card-text">Total Rooms</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="card bg-success">
+                <div class="card-body text-center">
+                    <i class="fas fa-check-circle fa-2x mb-2"></i>
+                    <h4 class="card-title">{{ occupied_rooms }}</h4>
+                    <p class="card-text">Occupied Rooms</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="card bg-info">
+                <div class="card-body text-center">
+                    <i class="fas fa-users fa-2x mb-2"></i>
+                    <h4 class="card-title">{{ total_tenants }}</h4>
+                    <p class="card-text">Active Tenants</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="card bg-warning">
+                <div class="card-body text-center">
+                    <i class="fas fa-dollar-sign fa-2x mb-2"></i>
+                    <h4 class="card-title">${{ "%.2f"|format(monthly_revenue) }}</h4>
+                    <p class="card-text">This Month</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Charts and Status -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-chart-line"></i> Monthly Revenue Trend</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="revenueChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-exclamation-triangle"></i> Payment Alerts</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between">
+                            <span>Pending Payments:</span>
+                            <span class="badge bg-warning">{{ pending_payments }}</span>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between">
+                            <span>Overdue Payments:</span>
+                            <span class="badge bg-danger">{{ overdue_payments }}</span>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between">
+                            <span>Occupancy Rate:</span>
+                            <span class="badge bg-info">{{ "%.1f"|format((occupied_rooms/total_rooms*100) if total_rooms > 0 else 0) }}%</span>
+                        </div>
+                    </div>
+                    
+                    {% if overdue_payments > 0 %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        You have {{ overdue_payments }} overdue payment(s) that need attention.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent Activity -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-clock"></i> Recent Payments</h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_payments %}
+                        <div class="list-group list-group-flush">
+                            {% for payment in recent_payments %}
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ payment.tenant.name }}</strong><br>
+                                    <small class="text-muted">Room {{ payment.room.number }} - Due: {{ payment.due_date.strftime('%b %d, %Y') }}</small>
+                                </div>
+                                <div class="text-end">
+                                    <div>${{ "%.2f"|format(payment.amount) }}</div>
+                                    <span class="badge bg-{% if payment.status == 'paid' %}success{% elif payment.status == 'overdue' %}danger{% else %}warning{% endif %}">
+                                        {{ payment.status.title() }}
+                                    </span>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted">No recent payments to display.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-star"></i> Top Performing Rooms</h5>
+                </div>
+                <div class="card-body">
+                    {% if popular_rooms %}
+                        <div class="list-group list-group-flush">
+                            {% for room, revenue in popular_rooms %}
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>Room {{ room.number }}</strong><br>
+                                    <small class="text-muted">Monthly Rent: ${{ "%.2f"|format(room.monthly_rent) }}</small>
+                                </div>
+                                <div class="text-end">
+                                    <div class="text-success">${{ "%.2f"|format(revenue) }}</div>
+                                    <small class="text-muted">Total Revenue</small>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted">No room performance data available.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Quick Actions -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-bolt"></i> Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <a href="{{ url_for('rooms_new') }}" class="btn btn-outline-primary btn-lg w-100 mb-2">
+                                <i class="fas fa-plus"></i><br>Add Room
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="{{ url_for('tenants_new') }}" class="btn btn-outline-success btn-lg w-100 mb-2">
+                                <i class="fas fa-user-plus"></i><br>Add Tenant
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="{{ url_for('payments_new') }}" class="btn btn-outline-warning btn-lg w-100 mb-2">
+                                <i class="fas fa-dollar-sign"></i><br>Record Payment
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="{{ url_for('financial_reports') }}" class="btn btn-outline-info btn-lg w-100 mb-2">
+                                <i class="fas fa-chart-bar"></i><br>View Reports
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Initialize revenue chart
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('revenueChart').getContext('2d');
+    
+    // Fetch revenue data from API
+    fetch('/api/dashboard/revenue-data')
+        .then(response => response.json())
+        .then(data => {
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.map(item => item.month),
+                    datasets: [{
+                        label: 'Monthly Revenue',
+                        data: data.map(item => item.revenue),
+                        borderColor: 'var(--bs-primary)',
+                        backgroundColor: 'var(--bs-primary-bg-subtle)',
+                        tension: 0.1,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '$' + value.toLocaleString();
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        })
+        .catch(error => {
+            console.error('Error loading revenue data:', error);
+            document.getElementById('revenueChart').innerHTML = '<p class="text-center text-muted">Unable to load chart data</p>';
+        });
+});
+</script>
+{% endblock %}

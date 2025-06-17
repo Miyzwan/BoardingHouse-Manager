@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+
+{% block title %}Tenants - Boarding House Management{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="fas fa-users"></i> Tenant Management</h1>
+        <a href="{{ url_for('tenants_new') }}" class="btn btn-primary">
+            <i class="fas fa-user-plus"></i> Add New Tenant
+        </a>
+    </div>
+    
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="active_only" id="activeOnly" 
+                               {% if active_only %}checked{% endif %} onchange="this.form.submit()">
+                        <label class="form-check-label" for="activeOnly">
+                            Show active tenants only
+                        </label>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Tenants List -->
+    {% if tenants.items %}
+        <div class="row">
+            {% for tenant in tenants.items %}
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card h-100 {% if not tenant.is_active %}border-secondary{% endif %}">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">{{ tenant.name }}</h5>
+                        <div>
+                            <span class="badge bg-{% if tenant.is_active %}success{% else %}secondary{% endif %}">
+                                {% if tenant.is_active %}Active{% else %}Inactive{% endif %}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-2">
+                            <i class="fas fa-door-open text-primary"></i>
+                            <strong>Room {{ tenant.room.number }}</strong>
+                            <span class="text-muted">(${{ "%.2f"|format(tenant.room.monthly_rent) }}/month)</span>
+                        </div>
+                        
+                        {% if tenant.phone %}
+                        <div class="mb-2">
+                            <i class="fas fa-phone text-muted"></i> {{ tenant.phone }}
+                        </div>
+                        {% endif %}
+                        
+                        {% if tenant.email %}
+                        <div class="mb-2">
+                            <i class="fas fa-envelope text-muted"></i> {{ tenant.email }}
+                        </div>
+                        {% endif %}
+                        
+                        <div class="mb-2">
+                            <i class="fas fa-calendar text-muted"></i> 
+                            Start: {{ tenant.start_date.strftime('%b %d, %Y') }}
+                            {% if tenant.end_date %}
+                                <br><i class="fas fa-calendar-times text-muted"></i> 
+                                End: {{ tenant.end_date.strftime('%b %d, %Y') }}
+                            {% endif %}
+                        </div>
+                        
+                        <hr>
+                        
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <div class="text-success">
+                                    <strong>${{ "%.2f"|format(tenant.total_paid) }}</strong><br>
+                                    <small class="text-muted">Total Paid</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="text-warning">
+                                    <strong>${{ "%.2f"|format(tenant.outstanding_amount) }}</strong><br>
+                                    <small class="text-muted">Outstanding</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <div class="btn-group w-100" role="group">
+                            <a href="{{ url_for('tenants_edit', id=tenant.id) }}" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-edit"></i> Edit
+                            </a>
+                            {% if tenant.is_active %}
+                            <button type="button" class="btn btn-outline-warning btn-sm" 
+                                    onclick="confirmDeactivate('{{ tenant.id }}', '{{ tenant.name }}')">
+                                <i class="fas fa-user-times"></i> Deactivate
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <!-- Pagination -->
+        {% if tenants.pages > 1 %}
+        <nav aria-label="Tenant pagination">
+            <ul class="pagination justify-content-center">
+                {% if tenants.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('tenants_index', page=tenants.prev_num, active_only=active_only) }}">Previous</a>
+                    </li>
+                {% endif %}
+                
+                {% for page_num in tenants.iter_pages() %}
+                    {% if page_num %}
+                        {% if page_num != tenants.page %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('tenants_index', page=page_num, active_only=active_only) }}">{{ page_num }}</a>
+                            </li>
+                        {% else %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ page_num }}</span>
+                            </li>
+                        {% endif %}
+                    {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if tenants.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('tenants_index', page=tenants.next_num, active_only=active_only) }}">Next</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    {% else %}
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                <h4>No Tenants Found</h4>
+                <p class="text-muted">{% if not active_only %}You haven't added any tenants yet.{% else %}No active tenants found.{% endif %}</p>
+                <a href="{{ url_for('tenants_new') }}" class="btn btn-primary">
+                    <i class="fas fa-user-plus"></i> Add Your First Tenant
+                </a>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Deactivate Confirmation Modal -->
+<div class="modal fade" id="deactivateModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Tenant Deactivation</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to deactivate <strong id="deactivateTenantName"></strong>?</p>
+                <p class="text-warning">This will mark the tenant as inactive and make their room available.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deactivateForm" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-warning">Deactivate</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function confirmDeactivate(tenantId, tenantName) {
+    document.getElementById('deactivateTenantName').textContent = tenantName;
+    document.getElementById('deactivateForm').action = '/tenants/' + tenantId + '/deactivate';
+    new bootstrap.Modal(document.getElementById('deactivateModal')).show();
+}
+</script>
+{% endblock %}

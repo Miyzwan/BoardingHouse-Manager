@@ -1,0 +1,279 @@
+{% extends "base.html" %}
+
+{% block title %}Financial Reports - Boarding House Management{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="fas fa-chart-line"></i> Financial Reports</h1>
+        <a href="{{ url_for('expenses_new') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Add Expense
+        </a>
+    </div>
+    
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card bg-success">
+                <div class="card-body text-center">
+                    <i class="fas fa-arrow-up fa-2x mb-2"></i>
+                    <h4>${{ "%.2f"|format(total_revenue) }}</h4>
+                    <p class="mb-0">Total Revenue</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-danger">
+                <div class="card-body text-center">
+                    <i class="fas fa-arrow-down fa-2x mb-2"></i>
+                    <h4>${{ "%.2f"|format(total_expenses) }}</h4>
+                    <p class="mb-0">Total Expenses</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-{% if (total_revenue - total_expenses) >= 0 %}info{% else %}warning{% endif %}">
+                <div class="card-body text-center">
+                    <i class="fas fa-{% if (total_revenue - total_expenses) >= 0 %}plus{% else %}minus{% endif %} fa-2x mb-2"></i>
+                    <h4>${{ "%.2f"|format(total_revenue - total_expenses) }}</h4>
+                    <p class="mb-0">Net Profit</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Charts -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-chart-bar"></i> Monthly Financial Overview</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="monthlyChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-chart-pie"></i> Expense Categories</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="expenseChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent Expenses -->
+    <div class="card">
+        <div class="card-header">
+            <h5><i class="fas fa-receipt"></i> Recent Expenses</h5>
+        </div>
+        <div class="card-body">
+            {% if recent_expenses %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Description</th>
+                                <th>Category</th>
+                                <th>Amount</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for expense in recent_expenses %}
+                            <tr>
+                                <td>{{ expense.date.strftime('%b %d, %Y') }}</td>
+                                <td><strong>{{ expense.description }}</strong></td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ expense.category.title() }}</span>
+                                </td>
+                                <td>
+                                    <strong class="text-danger">${{ "%.2f"|format(expense.amount) }}</strong>
+                                </td>
+                                <td>
+                                    {% if expense.notes %}
+                                        <small class="text-muted">{{ expense.notes[:50] }}{% if expense.notes|length > 50 %}...{% endif %}</small>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center">
+                    <i class="fas fa-receipt fa-3x text-muted mb-3"></i>
+                    <h5>No Expenses Recorded</h5>
+                    <p class="text-muted">Start tracking your operational expenses to get detailed financial insights.</p>
+                    <a href="{{ url_for('expenses_new') }}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add First Expense
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Monthly Data Table -->
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5><i class="fas fa-table"></i> Monthly Breakdown</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Month</th>
+                            <th>Revenue</th>
+                            <th>Expenses</th>
+                            <th>Profit</th>
+                            <th>Margin</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for data in monthly_data %}
+                        {% if data.revenue > 0 or data.expenses > 0 %}
+                        <tr>
+                            <td>{{ ["", "January", "February", "March", "April", "May", "June", 
+                                     "July", "August", "September", "October", "November", "December"][data.month] }}</td>
+                            <td class="text-success">${{ "%.2f"|format(data.revenue) }}</td>
+                            <td class="text-danger">${{ "%.2f"|format(data.expenses) }}</td>
+                            <td class="{% if data.profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                ${{ "%.2f"|format(data.profit) }}
+                            </td>
+                            <td>
+                                {% if data.revenue > 0 %}
+                                    <span class="{% if (data.profit/data.revenue*100) >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                        {{ "%.1f"|format(data.profit/data.revenue*100) }}%
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endif %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const monthlyData = {{ monthly_data | tojson }};
+    
+    // Monthly Financial Chart
+    const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    
+    new Chart(monthlyCtx, {
+        type: 'bar',
+        data: {
+            labels: monthlyData.map(data => months[data.month - 1]),
+            datasets: [{
+                label: 'Revenue',
+                data: monthlyData.map(data => data.revenue),
+                backgroundColor: 'rgba(25, 135, 84, 0.8)',
+                borderColor: 'rgba(25, 135, 84, 1)',
+                borderWidth: 1
+            }, {
+                label: 'Expenses',
+                data: monthlyData.map(data => data.expenses),
+                backgroundColor: 'rgba(220, 53, 69, 0.8)',
+                borderColor: 'rgba(220, 53, 69, 1)',
+                borderWidth: 1
+            }, {
+                label: 'Profit',
+                data: monthlyData.map(data => data.profit),
+                backgroundColor: 'rgba(13, 202, 240, 0.8)',
+                borderColor: 'rgba(13, 202, 240, 1)',
+                borderWidth: 1,
+                type: 'line'
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toLocaleString();
+                        }
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': $' + context.parsed.y.toLocaleString();
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // Expense Categories Chart
+    const expenseCtx = document.getElementById('expenseChart').getContext('2d');
+    
+    // Calculate expense categories from recent expenses (in a real app, this would come from the backend)
+    const categories = {};
+    {% for expense in recent_expenses %}
+        categories['{{ expense.category }}'] = (categories['{{ expense.category }}'] || 0) + {{ expense.amount }};
+    {% endfor %}
+    
+    const categoryLabels = Object.keys(categories);
+    const categoryData = Object.values(categories);
+    
+    if (categoryLabels.length > 0) {
+        new Chart(expenseCtx, {
+            type: 'doughnut',
+            data: {
+                labels: categoryLabels.map(cat => cat.charAt(0).toUpperCase() + cat.slice(1)),
+                datasets: [{
+                    data: categoryData,
+                    backgroundColor: [
+                        'rgba(255, 99, 132, 0.8)',
+                        'rgba(54, 162, 235, 0.8)',
+                        'rgba(255, 205, 86, 0.8)',
+                        'rgba(75, 192, 192, 0.8)',
+                        'rgba(153, 102, 255, 0.8)',
+                        'rgba(255, 159, 64, 0.8)'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.label + ': $' + context.parsed.toLocaleString();
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    } else {
+        expenseCtx.canvas.parentNode.innerHTML = '<p class="text-center text-muted mt-3">No expense data available</p>';
+    }
+});
+</script>
+{% endblock %}

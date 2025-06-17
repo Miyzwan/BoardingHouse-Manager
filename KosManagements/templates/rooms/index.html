@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+
+{% block title %}Rooms - Boarding House Management{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="fas fa-door-open"></i> Room Management</h1>
+        <a href="{{ url_for('rooms_new') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Add New Room
+        </a>
+    </div>
+    
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Status</label>
+                    <select name="status" class="form-select">
+                        <option value="">All Statuses</option>
+                        <option value="available" {% if status_filter == 'available' %}selected{% endif %}>Available</option>
+                        <option value="occupied" {% if status_filter == 'occupied' %}selected{% endif %}>Occupied</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Min Price</label>
+                    <input type="number" name="min_price" class="form-control" step="0.01" 
+                           value="{{ min_price if min_price }}" placeholder="Min $">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Max Price</label>
+                    <input type="number" name="max_price" class="form-control" step="0.01" 
+                           value="{{ max_price if max_price }}" placeholder="Max $">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">&nbsp;</label>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-outline-primary">
+                            <i class="fas fa-search"></i> Filter
+                        </button>
+                        <a href="{{ url_for('rooms_index') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times"></i> Clear
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Rooms List -->
+    {% if rooms.items %}
+        <div class="row">
+            {% for room in rooms.items %}
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Room {{ room.number }}</h5>
+                        <span class="badge bg-{% if room.status == 'available' %}success{% else %}warning{% endif %}">
+                            {{ room.status.title() }}
+                        </span>
+                    </div>
+                    <div class="card-body">
+                        <h4 class="text-primary">${{ "%.2f"|format(room.monthly_rent) }}/month</h4>
+                        
+                        {% if room.description %}
+                        <p class="card-text">{{ room.description[:100] }}{% if room.description|length > 100 %}...{% endif %}</p>
+                        {% endif %}
+                        
+                        {% if room.current_tenant %}
+                        <div class="alert alert-info">
+                            <i class="fas fa-user"></i> 
+                            Current Tenant: <strong>{{ room.current_tenant.name }}</strong>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="small text-muted mb-3">
+                            <i class="fas fa-dollar-sign"></i> Total Revenue: ${{ "%.2f"|format(room.total_revenue) }}<br>
+                            <i class="fas fa-calendar"></i> Created: {{ room.created_at.strftime('%b %d, %Y') }}
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <div class="btn-group w-100" role="group">
+                            <a href="{{ url_for('rooms_edit', id=room.id) }}" class="btn btn-outline-primary">
+                                <i class="fas fa-edit"></i> Edit
+                            </a>
+                            <button type="button" class="btn btn-outline-danger" 
+                                    onclick="confirmDelete('{{ room.id }}', 'Room {{ room.number }}')">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <!-- Pagination -->
+        {% if rooms.pages > 1 %}
+        <nav aria-label="Room pagination">
+            <ul class="pagination justify-content-center">
+                {% if rooms.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('rooms_index', page=rooms.prev_num, status=status_filter, min_price=min_price, max_price=max_price) }}">Previous</a>
+                    </li>
+                {% endif %}
+                
+                {% for page_num in rooms.iter_pages() %}
+                    {% if page_num %}
+                        {% if page_num != rooms.page %}
+                            <li class="page-item">
+                                <a class="page-link" href="{{ url_for('rooms_index', page=page_num, status=status_filter, min_price=min_price, max_price=max_price) }}">{{ page_num }}</a>
+                            </li>
+                        {% else %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ page_num }}</span>
+                            </li>
+                        {% endif %}
+                    {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if rooms.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('rooms_index', page=rooms.next_num, status=status_filter, min_price=min_price, max_price=max_price) }}">Next</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    {% else %}
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="fas fa-home fa-3x text-muted mb-3"></i>
+                <h4>No Rooms Found</h4>
+                <p class="text-muted">{% if status_filter or min_price or max_price %}No rooms match your filters.{% else %}You haven't added any rooms yet.{% endif %}</p>
+                <a href="{{ url_for('rooms_new') }}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Add Your First Room
+                </a>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete <strong id="deleteItemName"></strong>?</p>
+                <p class="text-danger">This action cannot be undone and will also delete all associated tenants and payments.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteForm" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function confirmDelete(roomId, roomName) {
+    document.getElementById('deleteItemName').textContent = roomName;
+    document.getElementById('deleteForm').action = '/rooms/' + roomId + '/delete';
+    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+</script>
+{% endblock %}
